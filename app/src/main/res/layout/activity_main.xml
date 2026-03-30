@@ -18,7 +18,7 @@
         android:layout_marginTop="18dp"
         android:text="Are You Alive"
         android:textColor="#111111"
-        android:textSize="40sp"
+        android:textSize="32sp"
         android:textStyle="bold"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
@@ -73,6 +73,9 @@
                 android:layout_weight="1"
                 android:background="@null"
                 android:hint="Tên của bạn"
+                android:imeOptions="actionDone"
+                android:inputType="textPersonName"
+                android:maxLines="1"
                 android:padding="0dp"
                 android:textColor="#333333"
                 android:textColorHint="#888888"
@@ -80,9 +83,13 @@
                 android:textStyle="bold" />
 
             <ImageView
+                android:id="@+id/btnEditContactsMain"
                 android:layout_width="24dp"
                 android:layout_height="24dp"
                 android:background="@drawable/edit_badge_bg"
+                android:clickable="true"
+                android:contentDescription="Sửa tên người dùng"
+                android:focusable="true"
                 android:padding="4dp"
                 android:src="@android:drawable/ic_menu_edit"
                 app:tint="#FFFFFF" />
@@ -118,7 +125,9 @@
                 android:layout_weight="1"
                 android:background="@null"
                 android:hint="Liên hệ khẩn cấp"
+                android:imeOptions="actionDone"
                 android:inputType="phone"
+                android:maxLines="1"
                 android:padding="0dp"
                 android:textColor="#333333"
                 android:textColorHint="#888888"
@@ -126,9 +135,13 @@
                 android:textStyle="bold" />
 
             <ImageView
+                android:id="@+id/btnEditContactsPhoneMain"
                 android:layout_width="24dp"
                 android:layout_height="24dp"
                 android:background="@drawable/edit_badge_bg"
+                android:clickable="true"
+                android:contentDescription="Sửa liên hệ khẩn cấp"
+                android:focusable="true"
                 android:padding="4dp"
                 android:src="@android:drawable/ic_menu_edit"
                 app:tint="#FFFFFF" />
@@ -137,9 +150,9 @@
 
     <FrameLayout
         android:id="@+id/btnCheckInContainer"
-        android:layout_width="280dp"
-        android:layout_height="280dp"
-        android:layout_marginTop="24dp"
+        android:layout_width="320dp"
+        android:layout_height="320dp"
+        android:layout_marginTop="40dp"
         android:clipChildren="false"
         android:clipToPadding="false"
         app:layout_constraintEnd_toEndOf="parent"
@@ -155,8 +168,8 @@
 
         <LinearLayout
             android:id="@+id/btnCheckIn"
-            android:layout_width="205dp"
-            android:layout_height="205dp"
+            android:layout_width="220dp"
+            android:layout_height="220dp"
             android:layout_gravity="center"
             android:background="@drawable/circle_background_pending"
             android:gravity="center"
@@ -169,7 +182,7 @@
                 android:text="Điểm danh ngay!"
                 android:textAlignment="center"
                 android:textColor="#FFFFFF"
-                android:textSize="22sp"
+                android:textSize="24sp"
                 android:textStyle="bold" />
         </LinearLayout>
     </FrameLayout>
@@ -178,7 +191,7 @@
         android:id="@+id/tvLastCheckIn"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="14dp"
+        android:layout_marginTop="20dp"
         android:text="Lần điểm danh gần nhất: --"
         android:textColor="#606060"
         android:textSize="14sp"
@@ -191,7 +204,7 @@
         android:id="@+id/tvNextCheckIn"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="6dp"
+        android:layout_marginTop="8dp"
         android:text="Lần điểm danh tới: --"
         android:textColor="#4B67FF"
         android:textSize="20sp"
@@ -206,7 +219,7 @@
         android:id="@+id/tvStreak"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
+        android:layout_marginTop="8dp"
         android:text="🔥 Chuỗi 2 ngày"
         android:textColor="#666666"
         android:textSize="18sp"

@@ -12,7 +12,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:gravity="center"
-        android:text="Your contact"
+        android:text="Liên hệ khẩn cấp"
         android:textColor="#111111"
         android:textSize="30sp"
         android:textStyle="bold" />
@@ -22,7 +22,7 @@
         android:layout_width="match_parent"
         android:layout_height="56dp"
         android:layout_marginTop="16dp"
-        android:text="➕ Add"
+        android:text="+ Thêm"
         android:textAllCaps="false"
         android:textColor="#FFFFFF"
         android:textSize="18sp"
@@ -43,7 +43,7 @@
         android:layout_height="wrap_content"
         android:layout_gravity="end"
         android:layout_marginTop="16dp"
-        android:text="Done"
+        android:text="Xong"
         android:textColor="#2E8EFF"
         android:textSize="16sp"
         android:textStyle="bold" />

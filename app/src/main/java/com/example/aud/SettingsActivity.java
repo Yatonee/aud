@@ -4,13 +4,17 @@ import android.app.Dialog;
 import android.app.TimePickerDialog;
 import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.text.Editable;
 import android.text.TextUtils;
+import android.text.TextWatcher;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.inputmethod.EditorInfo;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
 import android.widget.EditText;
-import android.widget.ImageButton;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
@@ -29,6 +33,7 @@ public class SettingsActivity extends AppCompatActivity {
 
     private EditText etDaysBeforeAlert;
     private TextView tvReminderTime;
+    private TextView tvAlertRuleDescription;
     private TextView btnDone;
     private Button btnAddContact;
     private SharedPreferences prefs;
@@ -41,6 +46,7 @@ public class SettingsActivity extends AppCompatActivity {
 
         etDaysBeforeAlert = findViewById(R.id.etDaysBeforeAlert);
         tvReminderTime = findViewById(R.id.tvReminderTime);
+        tvAlertRuleDescription = findViewById(R.id.tvAlertRuleDescription);
         btnDone = findViewById(R.id.btnDone);
         btnAddContact = findViewById(R.id.btnAddContact);
         
@@ -48,9 +54,26 @@ public class SettingsActivity extends AppCompatActivity {
 
         etDaysBeforeAlert.setText(String.valueOf(prefs.getInt(MainActivity.KEY_DAYS_BEFORE_ALERT, 2)));
         tvReminderTime.setText(prefs.getString(MainActivity.KEY_REMINDER_TIME, "09:00"));
+        updateAlertRuleDescription(parseDays(etDaysBeforeAlert.getText().toString().trim()));
         loadContacts();
 
         btnAddContact.setOnClickListener(v -> showContactsPopup());
+        etDaysBeforeAlert.addTextChangedListener(new TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) {}
+            @Override
+            public void afterTextChanged(Editable s) {
+                updateAlertRuleDescription(parseDays(s.toString().trim()));
+            }
+        });
+        etDaysBeforeAlert.setOnEditorActionListener((v, actionId, event) -> {
+            if (actionId == EditorInfo.IME_ACTION_DONE) {
+                hideKeyboard(v);
+                v.clearFocus();
+                return true;
+            }
+            return false;
+        });
 
         tvReminderTime.setOnClickListener(v -> {
             String[] parts = tvReminderTime.getText().toString().split(":");
@@ -71,8 +94,16 @@ public class SettingsActivity extends AppCompatActivity {
 
     private void saveAlertDays() {
         String rawValue = etDaysBeforeAlert.getText().toString().trim();
+        int days = parseDays(rawValue);
+
+        prefs.edit().putInt(MainActivity.KEY_DAYS_BEFORE_ALERT, days).apply();
+        etDaysBeforeAlert.setText(String.valueOf(days));
+        updateAlertRuleDescription(days);
+    }
+
+    private int parseDays(String rawValue) {
         if (TextUtils.isEmpty(rawValue)) {
-            rawValue = "2";
+            return 2;
         }
 
         int days;
@@ -88,9 +119,12 @@ public class SettingsActivity extends AppCompatActivity {
         if (days > 30) {
             days = 30;
         }
+        return days;
+    }
 
-        prefs.edit().putInt(MainActivity.KEY_DAYS_BEFORE_ALERT, days).apply();
-        etDaysBeforeAlert.setText(String.valueOf(days));
+    private void updateAlertRuleDescription(int days) {
+        int hours = days * 24;
+        tvAlertRuleDescription.setText("Nếu bạn không điểm danh quá " + days + " ngày liên tiếp (" + hours + " giờ), liên hệ khẩn cấp sẽ được thông báo.");
     }
 
     private void showContactsPopup() {
@@ -130,8 +164,8 @@ public class SettingsActivity extends AppCompatActivity {
             View row = inflater.inflate(R.layout.item_contact_card, container, false);
             TextView tvName = row.findViewById(R.id.tvContactName);
             TextView tvPhone = row.findViewById(R.id.tvContactPhone);
-            ImageButton btnDelete = row.findViewById(R.id.btnDeleteContact);
-            ImageButton btnEdit = row.findViewById(R.id.btnEditContact);
+            ImageView btnDelete = row.findViewById(R.id.btnDeleteContact);
+            ImageView btnEdit = row.findViewById(R.id.btnEditContact);
 
             tvName.setText(contact.name);
             tvPhone.setText(contact.phone);
@@ -162,12 +196,16 @@ public class SettingsActivity extends AppCompatActivity {
         EditText etName = new EditText(this);
         etName.setHint("Tên liên hệ");
         etName.setText(original != null ? original.name : "");
+        etName.setSingleLine(true);
+        etName.setImeOptions(EditorInfo.IME_ACTION_NEXT);
         form.addView(etName);
 
         EditText etPhone = new EditText(this);
         etPhone.setHint("Số điện thoại");
         etPhone.setInputType(android.text.InputType.TYPE_CLASS_PHONE);
         etPhone.setText(original != null ? original.phone : "");
+        etPhone.setSingleLine(true);
+        etPhone.setImeOptions(EditorInfo.IME_ACTION_DONE);
         form.addView(etPhone);
 
         AlertDialog alertDialog = new AlertDialog.Builder(this)
@@ -251,6 +289,13 @@ public class SettingsActivity extends AppCompatActivity {
         editor.putString(MainActivity.KEY_CONTACTS_JSON, arr.toString());
         editor.putString(MainActivity.KEY_PHONE, contacts.isEmpty() ? "" : contacts.get(0).phone);
         editor.apply();
+    }
+
+    private void hideKeyboard(View target) {
+        InputMethodManager imm = (InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
+        if (imm != null) {
+            imm.hideSoftInputFromWindow(target.getWindowToken(), 0);
+        }
     }
 
     private static class ContactItem {

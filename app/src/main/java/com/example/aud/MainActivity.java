@@ -2,6 +2,7 @@ package com.example.aud;
 
 import android.Manifest;
 import android.app.AlarmManager;
+import android.app.Dialog;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -10,18 +11,27 @@ import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.text.Editable;
+import android.text.InputType;
+import android.text.TextUtils;
 import android.text.TextWatcher;
+import android.view.LayoutInflater;
 import android.view.View;
+import android.view.ViewGroup;
+import android.view.inputmethod.EditorInfo;
+import android.view.inputmethod.InputMethodManager;
 import android.view.animation.AccelerateDecelerateInterpolator;
 import android.view.animation.Animation;
 import android.view.animation.ScaleAnimation;
+import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageButton;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
@@ -29,9 +39,14 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
+
+import java.util.ArrayList;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.List;
 import java.util.Locale;
 
 public class MainActivity extends AppCompatActivity {
@@ -45,14 +60,18 @@ public class MainActivity extends AppCompatActivity {
     public static final String KEY_REMINDER_TIME = "reminder_time";
     public static final String KEY_CONTACTS_JSON = "emergency_contacts_json";
     private static final int PERMISSION_REQUEST_CODE = 123;
+    private static final String DEFAULT_CONTACT_NAME = "Người thân";
 
     private EditText etUserName, etEmergencyPhone;
     private TextView tvLastCheckIn, tvNextCheckIn, tvStreak, tvCheckInStatus;
     private LinearLayout btnCheckIn;
     private ImageButton btnSettings;
+    private ImageView btnEditContactsMain;
+    private ImageView btnEditContactsPhoneMain;
     private View vPulse;
 
     private SharedPreferences prefs;
+    private final List<ContactItem> contacts = new ArrayList<>();
     private long lastCheckInTime;
     private int streakCount;
     private boolean wasCheckedToday;
@@ -77,6 +96,8 @@ public class MainActivity extends AppCompatActivity {
         tvCheckInStatus = findViewById(R.id.tvCheckInStatus);
         btnCheckIn = findViewById(R.id.btnCheckIn);
         btnSettings = findViewById(R.id.btnSettings);
+        btnEditContactsMain = findViewById(R.id.btnEditContactsMain);
+        btnEditContactsPhoneMain = findViewById(R.id.btnEditContactsPhoneMain);
         vPulse = findViewById(R.id.vPulse);
 
         prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
@@ -85,6 +106,8 @@ public class MainActivity extends AppCompatActivity {
         AlarmScheduler.scheduleFromPrefs(this);
         checkAndRequestPermissions();
         updateUI();
+        lockUserNameEditing();
+        lockPhoneFieldEditing();
 
         etUserName.addTextChangedListener(new TextWatcher() {
             @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
@@ -92,6 +115,14 @@ public class MainActivity extends AppCompatActivity {
             @Override public void afterTextChanged(Editable s) {
                 prefs.edit().putString(KEY_USER_NAME, s.toString()).apply();
             }
+        });
+        etUserName.setOnEditorActionListener((v, actionId, event) -> {
+            if (actionId == EditorInfo.IME_ACTION_DONE) {
+                lockUserNameEditing();
+                hideKeyboard(v);
+                return true;
+            }
+            return false;
         });
 
         etEmergencyPhone.addTextChangedListener(new TextWatcher() {
@@ -110,6 +141,21 @@ public class MainActivity extends AppCompatActivity {
         btnSettings.setOnClickListener(v -> {
             Intent intent = new Intent(MainActivity.this, SettingsActivity.class);
             startActivity(intent);
+        });
+
+        btnEditContactsMain.setOnClickListener(v -> {
+            animateTap(btnEditContactsMain);
+            unlockUserNameEditing();
+        });
+        btnEditContactsPhoneMain.setOnClickListener(v -> {
+            animateTap(btnEditContactsPhoneMain);
+            showContactsPopup();
+        });
+
+        etUserName.setOnFocusChangeListener((v, hasFocus) -> {
+            if (!hasFocus) {
+                lockUserNameEditing();
+            }
         });
     }
 
@@ -170,6 +216,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        loadData();
         updateUI();
     }
 
@@ -188,8 +235,7 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
 
-        String phone = etEmergencyPhone.getText().toString().trim();
-        if (phone.isEmpty()) {
+        if (!hasAnyEmergencyContact()) {
             Toast.makeText(this, "Vui lòng thêm liên hệ khẩn cấp trước.", Toast.LENGTH_SHORT).show();
             return;
         }
@@ -255,8 +301,257 @@ public class MainActivity extends AppCompatActivity {
 
     private void loadData() {
         etUserName.setText(prefs.getString(KEY_USER_NAME, ""));
-        etEmergencyPhone.setText(prefs.getString(KEY_PHONE, ""));
+        etEmergencyPhone.setText(getPrimaryEmergencyPhoneFromPrefs());
         lastCheckInTime = prefs.getLong(KEY_LAST_CHECK_IN, 0);
         streakCount = prefs.getInt(KEY_STREAK_COUNT, 0);
+    }
+
+    private boolean hasAnyEmergencyContact() {
+        return !loadEmergencyPhonesFromPrefs().isEmpty();
+    }
+
+    private String getPrimaryEmergencyPhoneFromPrefs() {
+        List<String> phones = loadEmergencyPhonesFromPrefs();
+        return phones.isEmpty() ? "" : phones.get(0);
+    }
+
+    private List<String> loadEmergencyPhonesFromPrefs() {
+        List<String> phones = new ArrayList<>();
+        String contactsJson = prefs.getString(KEY_CONTACTS_JSON, "");
+        if (contactsJson != null && !contactsJson.trim().isEmpty()) {
+            try {
+                JSONArray arr = new JSONArray(contactsJson);
+                for (int i = 0; i < arr.length(); i++) {
+                    JSONObject obj = arr.optJSONObject(i);
+                    if (obj == null) continue;
+                    String phone = obj.optString("phone", "").trim();
+                    if (!phone.isEmpty()) phones.add(phone);
+                }
+            } catch (Exception ignored) {
+            }
+        }
+
+        if (phones.isEmpty()) {
+            String fallback = prefs.getString(KEY_PHONE, "").trim();
+            if (!fallback.isEmpty()) phones.add(fallback);
+        }
+        return phones;
+    }
+
+    private void showContactsPopup() {
+        loadContacts();
+
+        Dialog dialog = new Dialog(this);
+        dialog.setContentView(R.layout.dialog_contacts);
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        }
+
+        Button btnAddInPopup = dialog.findViewById(R.id.btnAddInPopup);
+        TextView btnDonePopup = dialog.findViewById(R.id.btnDonePopup);
+        LinearLayout contactsContainer = dialog.findViewById(R.id.contactsContainer);
+
+        btnAddInPopup.setOnClickListener(v ->
+                showContactEditor(null, -1, () -> renderContacts(contactsContainer))
+        );
+        btnDonePopup.setOnClickListener(v -> {
+            syncPrimaryPhoneField();
+            dialog.dismiss();
+        });
+
+        renderContacts(contactsContainer);
+        dialog.show();
+    }
+
+    private void renderContacts(LinearLayout container) {
+        container.removeAllViews();
+        if (contacts.isEmpty()) {
+            TextView emptyView = new TextView(this);
+            emptyView.setText("Chưa có liên hệ khẩn cấp.");
+            emptyView.setTextSize(14f);
+            emptyView.setTextColor(0xFF777777);
+            container.addView(emptyView);
+            return;
+        }
+
+        LayoutInflater inflater = LayoutInflater.from(this);
+        for (int i = 0; i < contacts.size(); i++) {
+            ContactItem contact = contacts.get(i);
+            View row = inflater.inflate(R.layout.item_contact_card, container, false);
+            TextView tvName = row.findViewById(R.id.tvContactName);
+            TextView tvPhone = row.findViewById(R.id.tvContactPhone);
+            ImageView btnDelete = row.findViewById(R.id.btnDeleteContact);
+            ImageView btnEdit = row.findViewById(R.id.btnEditContact);
+
+            tvName.setText(contact.name);
+            tvPhone.setText(contact.phone);
+
+            final int index = i;
+            btnDelete.setOnClickListener(v -> {
+                contacts.remove(index);
+                saveContacts();
+                syncPrimaryPhoneField();
+                renderContacts(container);
+            });
+            btnEdit.setOnClickListener(v ->
+                    showContactEditor(contact, index, () -> renderContacts(container))
+            );
+            row.setOnClickListener(v ->
+                    showContactEditor(contact, index, () -> renderContacts(container))
+            );
+
+            container.addView(row);
+        }
+    }
+
+    private void showContactEditor(ContactItem original, int index, Runnable onSaved) {
+        LinearLayout form = new LinearLayout(this);
+        form.setOrientation(LinearLayout.VERTICAL);
+        int pad = (int) (16 * getResources().getDisplayMetrics().density);
+        form.setPadding(pad, pad, pad, 0);
+
+        EditText etName = new EditText(this);
+        etName.setHint("Tên liên hệ");
+        etName.setText(original != null ? original.name : "");
+        etName.setSingleLine(true);
+        etName.setImeOptions(EditorInfo.IME_ACTION_NEXT);
+        form.addView(etName);
+
+        EditText etPhone = new EditText(this);
+        etPhone.setHint("Số điện thoại");
+        etPhone.setInputType(InputType.TYPE_CLASS_PHONE);
+        etPhone.setText(original != null ? original.phone : "");
+        etPhone.setSingleLine(true);
+        etPhone.setImeOptions(EditorInfo.IME_ACTION_DONE);
+        form.addView(etPhone);
+
+        AlertDialog alertDialog = new AlertDialog.Builder(this)
+                .setTitle(original == null ? "Thêm liên hệ khẩn cấp" : "Sửa liên hệ")
+                .setView(form)
+                .setNegativeButton("Hủy", null)
+                .setPositiveButton("Lưu", null)
+                .create();
+
+        alertDialog.setOnShowListener(dialog -> {
+            Button btnSave = alertDialog.getButton(AlertDialog.BUTTON_POSITIVE);
+            btnSave.setOnClickListener(v -> {
+                String name = etName.getText().toString().trim();
+                String phone = etPhone.getText().toString().trim();
+
+                if (TextUtils.isEmpty(phone)) {
+                    etPhone.setError("Cần nhập số điện thoại");
+                    return;
+                }
+                if (TextUtils.isEmpty(name)) {
+                    name = DEFAULT_CONTACT_NAME;
+                }
+
+                ContactItem item = new ContactItem(name, phone);
+                if (index >= 0 && index < contacts.size()) {
+                    contacts.set(index, item);
+                } else {
+                    contacts.add(item);
+                }
+
+                saveContacts();
+                syncPrimaryPhoneField();
+                onSaved.run();
+                alertDialog.dismiss();
+            });
+        });
+        alertDialog.show();
+    }
+
+    private void loadContacts() {
+        contacts.clear();
+
+        String json = prefs.getString(KEY_CONTACTS_JSON, "");
+        if (!TextUtils.isEmpty(json)) {
+            try {
+                JSONArray arr = new JSONArray(json);
+                for (int i = 0; i < arr.length(); i++) {
+                    JSONObject obj = arr.optJSONObject(i);
+                    if (obj == null) continue;
+                    String name = obj.optString("name", DEFAULT_CONTACT_NAME).trim();
+                    String phone = obj.optString("phone", "").trim();
+                    if (!TextUtils.isEmpty(phone)) {
+                        contacts.add(new ContactItem(TextUtils.isEmpty(name) ? DEFAULT_CONTACT_NAME : name, phone));
+                    }
+                }
+            } catch (Exception ignored) {
+            }
+        }
+
+        if (contacts.isEmpty()) {
+            String legacyPhone = prefs.getString(KEY_PHONE, "").trim();
+            if (!TextUtils.isEmpty(legacyPhone)) {
+                contacts.add(new ContactItem(DEFAULT_CONTACT_NAME, legacyPhone));
+            }
+        }
+    }
+
+    private void saveContacts() {
+        JSONArray arr = new JSONArray();
+        for (ContactItem contact : contacts) {
+            JSONObject obj = new JSONObject();
+            try {
+                obj.put("name", contact.name);
+                obj.put("phone", contact.phone);
+                arr.put(obj);
+            } catch (Exception ignored) {
+            }
+        }
+
+        prefs.edit()
+                .putString(KEY_CONTACTS_JSON, arr.toString())
+                .putString(KEY_PHONE, contacts.isEmpty() ? "" : contacts.get(0).phone)
+                .apply();
+    }
+
+    private void syncPrimaryPhoneField() {
+        String primaryPhone = contacts.isEmpty() ? "" : contacts.get(0).phone;
+        etEmergencyPhone.setText(primaryPhone);
+    }
+
+    private void lockUserNameEditing() {
+        etUserName.setFocusable(false);
+        etUserName.setFocusableInTouchMode(false);
+        etUserName.setCursorVisible(false);
+    }
+
+    private void unlockUserNameEditing() {
+        etUserName.setFocusable(true);
+        etUserName.setFocusableInTouchMode(true);
+        etUserName.setCursorVisible(true);
+        etUserName.requestFocus();
+        etUserName.setSelection(etUserName.getText().length());
+
+        InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+        if (imm != null) {
+            imm.showSoftInput(etUserName, InputMethodManager.SHOW_IMPLICIT);
+        }
+    }
+
+    private void lockPhoneFieldEditing() {
+        etEmergencyPhone.setFocusable(false);
+        etEmergencyPhone.setFocusableInTouchMode(false);
+        etEmergencyPhone.setCursorVisible(false);
+    }
+
+    private void hideKeyboard(View target) {
+        InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+        if (imm != null) {
+            imm.hideSoftInputFromWindow(target.getWindowToken(), 0);
+        }
+    }
+
+    private static class ContactItem {
+        final String name;
+        final String phone;
+
+        ContactItem(String name, String phone) {
+            this.name = name;
+            this.phone = phone;
+        }
     }
 }
