@@ -230,6 +230,15 @@ public class MainActivity extends AppCompatActivity {
                cal1.get(Calendar.DAY_OF_YEAR) == cal2.get(Calendar.DAY_OF_YEAR);
     }
 
+    private boolean isYesterday(long time) {
+        Calendar yesterday = Calendar.getInstance();
+        yesterday.add(Calendar.DAY_OF_YEAR, -1);
+        Calendar target = Calendar.getInstance();
+        target.setTimeInMillis(time);
+        return yesterday.get(Calendar.YEAR) == target.get(Calendar.YEAR) &&
+               yesterday.get(Calendar.DAY_OF_YEAR) == target.get(Calendar.DAY_OF_YEAR);
+    }
+
     private void performCheckIn() {
         if (isSameDay(lastCheckInTime, System.currentTimeMillis())) {
             Toast.makeText(this, "Hôm nay bạn đã điểm danh rồi.", Toast.LENGTH_SHORT).show();
@@ -242,13 +251,16 @@ public class MainActivity extends AppCompatActivity {
         }
 
         long currentTime = System.currentTimeMillis();
-        long oneDayMillis = 24 * 60 * 60 * 1000L;
-        
+
         if (lastCheckInTime > 0) {
-            // Nếu check-in vào ngày kế tiếp (trong khoảng 48h)
-            if (currentTime - lastCheckInTime < oneDayMillis * 2) streakCount++;
-            else streakCount = 1;
-        } else streakCount = 1;
+            if (isYesterday(lastCheckInTime)) {
+                streakCount++;
+            } else {
+                streakCount = 1;
+            }
+        } else {
+            streakCount = 1;
+        }
 
         lastCheckInTime = currentTime;
         saveData();
@@ -309,6 +321,14 @@ public class MainActivity extends AppCompatActivity {
         etEmergencyPhone.setText(getPrimaryEmergencyPhoneFromPrefs());
         lastCheckInTime = prefs.getLong(KEY_LAST_CHECK_IN, 0);
         streakCount = prefs.getInt(KEY_STREAK_COUNT, 0);
+
+        if (lastCheckInTime > 0) {
+            long now = System.currentTimeMillis();
+            if (!isSameDay(lastCheckInTime, now) && !isYesterday(lastCheckInTime)) {
+                streakCount = 0;
+                prefs.edit().putInt(KEY_STREAK_COUNT, 0).apply();
+            }
+        }
     }
 
     private boolean hasAnyEmergencyContact() {
