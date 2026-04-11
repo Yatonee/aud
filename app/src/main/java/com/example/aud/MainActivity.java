@@ -59,6 +59,7 @@ public class MainActivity extends AppCompatActivity {
     public static final String KEY_DAYS_BEFORE_ALERT = "days_before_alert";
     public static final String KEY_REMINDER_TIME = "reminder_time";
     public static final String KEY_CONTACTS_JSON = "emergency_contacts_json";
+    public static final String KEY_EMERGENCY_COUNT = "emergency_count";
     private static final int PERMISSION_REQUEST_CODE = 123;
     private static final String DEFAULT_CONTACT_NAME = "Người thân";
 
@@ -296,7 +297,11 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void saveData() {
-        prefs.edit().putLong(KEY_LAST_CHECK_IN, lastCheckInTime).putInt(KEY_STREAK_COUNT, streakCount).apply();
+        prefs.edit()
+                .putLong(KEY_LAST_CHECK_IN, lastCheckInTime)
+                .putInt(KEY_STREAK_COUNT, streakCount)
+                .putInt(KEY_EMERGENCY_COUNT, 0)
+                .apply();
     }
 
     private void loadData() {
@@ -552,6 +557,20 @@ public class MainActivity extends AppCompatActivity {
         ContactItem(String name, String phone) {
             this.name = name;
             this.phone = phone;
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == PERMISSION_REQUEST_CODE) {
+            for (int i = 0; i < permissions.length; i++) {
+                if (Manifest.permission.SEND_SMS.equals(permissions[i])) {
+                    if (grantResults[i] != PackageManager.PERMISSION_GRANTED) {
+                        Toast.makeText(this, "Quyền gửi SMS bị từ chối. Không thể gửi SMS khẩn cấp!", Toast.LENGTH_LONG).show();
+                    }
+                }
+            }
         }
     }
 }

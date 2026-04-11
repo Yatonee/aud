@@ -6,6 +6,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Build;
+import android.util.Log;
 
 import java.util.Calendar;
 
@@ -36,8 +37,17 @@ public final class AlarmScheduler {
     private static void scheduleEmergencyAlarm(Context context, long triggerAtMillis) {
         AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
         if (alarmManager == null) {
+            Log.e("AUD_DEBUG", "AlarmScheduler: AlarmManager is NULL!");
             return;
         }
+
+        SharedPreferences prefs = context.getSharedPreferences(MainActivity.PREFS_NAME, Context.MODE_PRIVATE);
+        long lastCheckIn = prefs.getLong(MainActivity.KEY_LAST_CHECK_IN, 0L);
+        int daysBeforeAlert = Math.max(1, prefs.getInt(MainActivity.KEY_DAYS_BEFORE_ALERT, 2));
+        long calculatedTrigger = lastCheckIn + (daysBeforeAlert * ONE_DAY_MILLIS);
+        
+        Log.d("AUD_DEBUG", "AlarmScheduler: lastCheckIn=" + lastCheckIn + ", daysBeforeAlert=" + daysBeforeAlert);
+        Log.d("AUD_DEBUG", "AlarmScheduler: calculatedTrigger=" + calculatedTrigger + ", triggerAtMillis=" + triggerAtMillis);
 
         Intent emergencyIntent = new Intent(context, AlertReceiver.class).setAction(AlertReceiver.ACTION_EMERGENCY);
         PendingIntent emergencyPi = PendingIntent.getBroadcast(
@@ -48,6 +58,7 @@ public final class AlarmScheduler {
         );
 
         long safeTrigger = Math.max(triggerAtMillis, System.currentTimeMillis() + 5_000L);
+        Log.d("AUD_DEBUG", "AlarmScheduler: Setting emergency alarm for " + new java.util.Date(safeTrigger));
         setExactBestEffort(alarmManager, safeTrigger, emergencyPi);
     }
 
@@ -93,7 +104,7 @@ public final class AlarmScheduler {
         setExactBestEffort(alarmManager, calendar.getTimeInMillis(), reminderPi);
     }
 
-    private static void cancelEmergencyAlarm(Context context) {
+    public static void cancelEmergencyAlarm(Context context) {
         AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
         if (alarmManager == null) {
             return;

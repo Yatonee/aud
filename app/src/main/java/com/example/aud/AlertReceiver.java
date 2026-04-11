@@ -7,13 +7,15 @@ import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.telephony.SmsManager;
+import android.util.Log;
+
 import androidx.core.app.NotificationCompat;
 import androidx.core.content.ContextCompat;
-import android.util.Log;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -30,43 +32,76 @@ public class AlertReceiver extends BroadcastReceiver {
 
     @Override
     public void onReceive(Context context, Intent intent) {
-        if (intent == null) return;
+        if (intent == null) {
+            Log.e("AUD_DEBUG", "AlertReceiver: intent is NULL!");
+            return;
+        }
         String action = intent.getAction();
-        Log.d("AUD_DEBUG", "Received action: " + action);
-        
+        Log.d("AUD_DEBUG", "AlertReceiver: Received action=" + action + " at " + new java.util.Date());
+
         if (ACTION_REMINDER.equals(action)) {
+            Log.d("AUD_DEBUG", "AlertReceiver: Processing REMINDER");
             sendNotification(context, "Nhắc nhở an toàn", "Đã đến giờ điểm danh hằng ngày.", true);
-            // Nhắc hằng ngày dùng dạng one-shot exact, nên cần tự lên lịch lại sau mỗi lần chạy.
             AlarmScheduler.scheduleFromPrefs(context);
+
         } else if (ACTION_CHECK_IN_FROM_NOTIFICATION.equals(action)) {
+            Log.d("AUD_DEBUG", "AlertReceiver: Processing QUICK_CHECK_IN");
             performQuickCheckIn(context);
+
         } else if (ACTION_EMERGENCY.equals(action)) {
-            sendEmergencySms(context);
-            sendNotification(context, "Cảnh báo khẩn cấp", "Không nhận được điểm danh. Đã gửi SMS khẩn cấp.", false);
+            Log.d("AUD_DEBUG", "AlertReceiver: Processing EMERGENCY_SMS");
+
+            // Đếm số lần emergency đã kích hoạt
+            SharedPreferences prefs = context.getSharedPreferences(MainActivity.PREFS_NAME, Context.MODE_PRIVATE);
+            int emergencyCount = prefs.getInt(MainActivity.KEY_EMERGENCY_COUNT, 0) + 1;
+            prefs.edit().putInt(MainActivity.KEY_EMERGENCY_COUNT, emergencyCount).apply();
+
+            boolean smsSent = sendEmergencySms(context);
+            if (smsSent) {
+                sendNotification(context, "Cảnh báo khẩn cấp",
+                        "Không nhận được điểm danh. Đã gửi SMS khẩn cấp lần " + emergencyCount + ".", false);
+            } else {
+                sendNotification(context, "Cảnh báo khẩn cấp",
+                        "Không nhận được điểm danh. Gửi SMS thất bại - kiểm tra quyền SMS.", false);
+            }
+
+            // Chỉ reschedule nếu chưa đến 3 lần
+            if (emergencyCount < 3) {
+                Log.d("AUD_DEBUG", "Emergency count=" + emergencyCount + ", rescheduling for next attempt");
+                AlarmScheduler.scheduleFromPrefs(context);
+            } else {
+                Log.d("AUD_DEBUG", "Emergency count=" + emergencyCount + ", max reached, canceling alarm");
+                AlarmScheduler.cancelEmergencyAlarm(context);
+                sendNotification(context, "Hết lượt gửi SMS",
+                        "Đã gửi tối đa 3 lần SMS khẩn cấp. Vui lòng điểm danh thủ công.", false);
+            }
+
+        } else {
+            Log.w("AUD_DEBUG", "AlertReceiver: Unknown action=" + action);
         }
     }
 
     private void sendNotification(Context context, String title, String message, boolean includeCheckInAction) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-                ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS)
+                        != PackageManager.PERMISSION_GRANTED) {
             Log.w("AUD_DEBUG", "POST_NOTIFICATIONS permission denied, cannot show notification.");
             return;
         }
 
-        NotificationManager notificationManager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+        NotificationManager notificationManager =
+                (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            NotificationChannel channel = new NotificationChannel(CHANNEL_ID, "Thông báo an toàn", NotificationManager.IMPORTANCE_HIGH);
+            NotificationChannel channel = new NotificationChannel(
+                    CHANNEL_ID, "Thông báo an toàn", NotificationManager.IMPORTANCE_HIGH);
             notificationManager.createNotificationChannel(channel);
         }
 
         Intent openAppIntent = new Intent(context, MainActivity.class);
         openAppIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
         PendingIntent openAppPendingIntent = PendingIntent.getActivity(
-                context,
-                2001,
-                openAppIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
-        );
+                context, 2001, openAppIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 
         NotificationCompat.Builder builder = new NotificationCompat.Builder(context, CHANNEL_ID)
                 .setSmallIcon(R.mipmap.ic_launcher)
@@ -77,13 +112,11 @@ public class AlertReceiver extends BroadcastReceiver {
                 .setAutoCancel(true);
 
         if (includeCheckInAction) {
-            Intent quickCheckInIntent = new Intent(context, AlertReceiver.class).setAction(ACTION_CHECK_IN_FROM_NOTIFICATION);
+            Intent quickCheckInIntent = new Intent(context, AlertReceiver.class)
+                    .setAction(ACTION_CHECK_IN_FROM_NOTIFICATION);
             PendingIntent quickCheckInPendingIntent = PendingIntent.getBroadcast(
-                    context,
-                    2002,
-                    quickCheckInIntent,
-                    PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
-            );
+                    context, 2002, quickCheckInIntent,
+                    PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
             builder.addAction(0, "Điểm danh", quickCheckInPendingIntent);
         }
 
@@ -101,10 +134,14 @@ public class AlertReceiver extends BroadcastReceiver {
         }
 
         int streak = prefs.getInt(MainActivity.KEY_STREAK_COUNT, 0);
-        long oneDayMillis = 24L * 60L * 60L * 1000L;
+        // FIX 2: Dùng isYesterday() thay vì so sánh ms thô để tránh streak sai
+        // khi điểm danh vào cuối/đầu ngày (ví dụ 23:59 hôm trước → 00:01 hôm nay).
         if (lastCheckIn > 0L) {
-            if (now - lastCheckIn < oneDayMillis * 2L) streak++;
-            else streak = 1;
+            if (isYesterday(lastCheckIn, now)) {
+                streak++;
+            } else {
+                streak = 1;
+            }
         } else {
             streak = 1;
         }
@@ -112,38 +149,108 @@ public class AlertReceiver extends BroadcastReceiver {
         prefs.edit()
                 .putLong(MainActivity.KEY_LAST_CHECK_IN, now)
                 .putInt(MainActivity.KEY_STREAK_COUNT, streak)
+                .putInt(MainActivity.KEY_EMERGENCY_COUNT, 0)
                 .apply();
 
         AlarmScheduler.scheduleFromPrefs(context);
         sendNotification(context, "Đã điểm danh", "Điểm danh nhanh thành công từ thông báo.", false);
     }
 
-    private void sendEmergencySms(Context context) {
+    private boolean sendEmergencySms(Context context) {
         SharedPreferences prefs = context.getSharedPreferences(MainActivity.PREFS_NAME, Context.MODE_PRIVATE);
         String userName = prefs.getString(MainActivity.KEY_USER_NAME, "Người dùng");
         int days = prefs.getInt(MainActivity.KEY_DAYS_BEFORE_ALERT, 2);
         List<String> phones = getEmergencyPhones(prefs);
-        
-        String message = "KHẨN CẤP: " + userName + " đã không điểm danh trên Bạn ổn không trong " + days + " ngày. Vui lòng kiểm tra ngay.";
 
-        if (!phones.isEmpty()) {
-            try {
-                SmsManager smsManager;
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    smsManager = context.getSystemService(SmsManager.class);
-                } else {
-                    smsManager = SmsManager.getDefault();
-                }
-                for (String phone : phones) {
-                    smsManager.sendTextMessage(phone, null, message, null, null);
-                    Log.d("AUD_DEBUG", "SMS Sent to: " + phone);
-                }
-            } catch (Exception e) {
-                Log.e("AUD_DEBUG", "SMS Failed: " + e.getMessage());
-            }
-        } else {
-            Log.d("AUD_DEBUG", "Phone number is empty, cannot send SMS");
+        Log.d("AUD_DEBUG", "=== sendEmergencySms ===");
+        Log.d("AUD_DEBUG", "userName=" + userName + ", days=" + days + ", phones=" + phones);
+
+        if (phones.isEmpty()) {
+            Log.e("AUD_DEBUG", "ERROR: No phone numbers configured!");
+            return false;
         }
+
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.SEND_SMS)
+                != PackageManager.PERMISSION_GRANTED) {
+            Log.e("AUD_DEBUG", "ERROR: SEND_SMS permission not granted!");
+            return false;
+        }
+
+        String message = "KHẨN CẤP: " + userName + " không điểm danh " + days
+                + " ngày. Kiểm tra ngay!";
+        Log.d("AUD_DEBUG", "SMS message: " + message);
+
+        SmsManager smsManager = getSmsManager(context);
+        boolean allSucceeded = true;
+
+        for (int i = 0; i < phones.size(); i++) {
+            String phone = phones.get(i);
+            try {
+                Log.d("AUD_DEBUG", "Sending SMS to: " + phone);
+
+                // FIX 3: Dùng explicit intent thay vì implicit để đảm bảo
+                // SmsSentReceiver nhận được broadcast trên Android 8.0+.
+                Intent sentIntent = new Intent(context, SmsSentReceiver.class);
+                sentIntent.setAction(SmsSentReceiver.ACTION_SMS_SENT);
+                sentIntent.putExtra("phone", phone);
+
+                // FIX 4: Dùng index i làm requestCode thay vì System.currentTimeMillis()
+                // để tránh trùng requestCode khi gửi nhiều số trong cùng một vòng lặp.
+                PendingIntent sentPI = PendingIntent.getBroadcast(
+                        context,
+                        i,  // unique per phone
+                        sentIntent,
+                        PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+                );
+
+                ArrayList<String> parts = smsManager.divideMessage(message);
+                if (parts.size() == 1) {
+                    smsManager.sendTextMessage(phone, null, message, sentPI, null);
+                    Log.d("AUD_DEBUG", "sendTextMessage() called for: " + phone);
+                } else {
+                    // FIX 5: Tạo danh sách sentPI cho từng phần của multipart SMS
+                    // thay vì truyền null — đảm bảo tracking đầy đủ cho mọi phần.
+                    ArrayList<PendingIntent> sentPIList = new ArrayList<>();
+                    for (int part = 0; part < parts.size(); part++) {
+                        Intent partIntent = new Intent(context, SmsSentReceiver.class);
+                        partIntent.setAction(SmsSentReceiver.ACTION_SMS_SENT);
+                        partIntent.putExtra("phone", phone);
+                        partIntent.putExtra("part", part);
+
+                        // requestCode = i * 100 + part để unique cho mỗi phần của mỗi số
+                        PendingIntent partPI = PendingIntent.getBroadcast(
+                                context,
+                                i * 100 + part,
+                                partIntent,
+                                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+                        );
+                        sentPIList.add(partPI);
+                    }
+                    smsManager.sendMultipartTextMessage(phone, null, parts, sentPIList, null);
+                    Log.d("AUD_DEBUG", "sendMultipartTextMessage() called for: " + phone
+                            + " (" + parts.size() + " parts)");
+                }
+
+            } catch (Exception e) {
+                Log.e("AUD_DEBUG", "Failed to send SMS to " + phone + ": "
+                        + e.getClass().getSimpleName() + " - " + e.getMessage());
+                allSucceeded = false;
+            }
+        }
+
+        return allSucceeded;
+    }
+
+    /**
+     * Lấy SmsManager phù hợp theo API level.
+     * Trên Android 6+, createForDefaultSmsApp() ít bị chặn hơn getDefault()
+     * trên một số thiết bị (Samsung, Xiaomi).
+     */
+    private SmsManager getSmsManager(Context context) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            return context.getSystemService(SmsManager.class);
+        }
+        return SmsManager.getDefault();
     }
 
     private List<String> getEmergencyPhones(SharedPreferences prefs) {
@@ -162,6 +269,7 @@ public class AlertReceiver extends BroadcastReceiver {
             }
         }
 
+        // Fallback sang KEY_PHONE cũ nếu chưa migrate
         if (phones.isEmpty()) {
             String fallback = prefs.getString(MainActivity.KEY_PHONE, "").trim();
             if (!fallback.isEmpty()) phones.add(fallback);
@@ -179,4 +287,22 @@ public class AlertReceiver extends BroadcastReceiver {
                 && cal1.get(Calendar.DAY_OF_YEAR) == cal2.get(Calendar.DAY_OF_YEAR);
     }
 
+    /**
+     * Kiểm tra time1 có phải là ngày hôm qua so với time2 không.
+     * Dùng Calendar để so sánh ngày thực, tránh sai sót khi điểm danh
+     * vào đầu hoặc cuối ngày (ví dụ: 23:59 → 00:01 cách nhau chỉ 2 phút
+     * nhưng khác ngày, còn 00:01 → 23:59 cách nhau ~24h nhưng cùng "khoảng 1 ngày").
+     */
+    private boolean isYesterday(long time1, long time2) {
+        if (time1 <= 0L || time2 <= 0L) return false;
+        Calendar cal1 = Calendar.getInstance();
+        cal1.setTimeInMillis(time1);
+        Calendar cal2 = Calendar.getInstance();
+        cal2.setTimeInMillis(time2);
+
+        // Lùi cal2 về 1 ngày rồi so sánh
+        cal2.add(Calendar.DAY_OF_YEAR, -1);
+        return cal1.get(Calendar.YEAR) == cal2.get(Calendar.YEAR)
+                && cal1.get(Calendar.DAY_OF_YEAR) == cal2.get(Calendar.DAY_OF_YEAR);
+    }
 }

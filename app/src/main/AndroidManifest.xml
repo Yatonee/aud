@@ -19,6 +19,11 @@
         android:theme="@style/Theme.Aud">
         
         <receiver android:name=".AlertReceiver" android:exported="true" />
+        <receiver android:name=".SmsSentReceiver" android:exported="false">
+            <intent-filter>
+                <action android:name="com.example.aud.SMS_SENT" />
+            </intent-filter>
+        </receiver>
         <receiver android:name=".BootReceiver" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
