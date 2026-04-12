@@ -1,3 +1,67 @@
 <resources>
+    <!-- App -->
     <string name="app_name">Bạn ổn không</string>
+
+    <!-- MainActivity -->
+    <string name="hint_your_name">Tên của bạn</string>
+    <string name="hint_emergency_contact">Liên hệ khẩn cấp</string>
+    <string name="check_in_now">Điểm danh ngay!</string>
+    <string name="checked_in">Đã điểm danh</string>
+    <string name="last_check_in">Lần điểm danh gần nhất: --</string>
+    <string name="next_check_in">Lần điểm danh tới: --</string>
+    <string name="streak">🔥 Chuỗi %d ngày</string>
+    <string name="checked_in_today">Hôm nay bạn đã điểm danh rồi.</string>
+    <string name="add_contact_first">Vui lòng thêm liên hệ khẩn cấp trước.</string>
+    <string name="check_in_success">Điểm danh thành công.</string>
+    <string name="no_contacts">Chưa có liên hệ khẩn cấp.</string>
+    <string name="edit_user_name">Sửa tên người dùng</string>
+    <string name="edit_emergency_contact">Sửa liên hệ khẩn cấp</string>
+    <string name="contact_name_hint">Tên liên hệ</string>
+    <string name="contact_phone_hint">Số điện thoại</string>
+    <string name="add_emergency_contact">Thêm liên hệ khẩn cấp</string>
+    <string name="edit_contact">Sửa liên hệ</string>
+    <string name="cancel">Hủy</string>
+    <string name="save">Lưu</string>
+    <string name="phone_required">Cần nhập số điện thoại</string>
+    <string name="delete_contact">Xóa liên hệ</string>
+    <string name="default_contact_name">Người thân</string>
+    <string name="sms_permission_denied">Quyền gửi SMS bị từ chối. Không thể gửi SMS khẩn cấp!</string>
+
+    <!-- SettingsActivity -->
+    <string name="settings">Cài đặt</string>
+    <string name="done">Xong</string>
+    <string name="add_emergency_contact_btn">+ Thêm liên hệ khẩn cấp</string>
+    <string name="reminder_settings">🔔  Cài đặt nhắc nhở</string>
+    <string name="daily_reminder_time">Giờ nhắc hằng ngày</string>
+    <string name="safety_settings">🛡  Cài đặt an toàn</string>
+    <string name="days_before_alert">Số ngày trước cảnh báo</string>
+    <string name="alert_rule_description">Nếu bạn không điểm danh quá %d ngày liên tiếp (%d giờ), liên hệ khẩn cấp sẽ được thông báo.</string>
+    <string name="about">ⓘ Giới thiệu</string>
+    <string name="version_format">Phiên bản %s</string>
+    <string name="app_description">Bạn còn ổn không giúp đảm bảo an toàn cho người sống một mình, đặc biệt là người cao tuổi, bằng cách theo dõi điểm danh hằng ngày.</string>
+
+    <!-- Ngôn ngữ -->
+    <string name="language">Ngôn ngữ</string>
+    <string name="language_vietnamese">Tiếng Việt</string>
+    <string name="language_english">English</string>
+    <string name="language_changed">Ngôn ngữ đã được thay đổi</string>
+
+    <!-- Dialog Contacts -->
+    <string name="emergency_contacts">Liên hệ khẩn cấp</string>
+    <string name="add">+ Thêm</string>
+
+    <!-- Notifications -->
+    <string name="safety_reminder_title">Nhắc nhở an toàn</string>
+    <string name="daily_check_in_reminder">Đã đến giờ điểm danh hằng ngày.</string>
+    <string name="emergency_alert_title">Cảnh báo khẩn cấp</string>
+    <string name="emergency_sms_sent">Không nhận được điểm danh. Đã gửi SMS khẩn cấp lần %d.</string>
+    <string name="emergency_sms_failed">Không nhận được điểm danh. Gửi SMS thất bại - kiểm tra quyền SMS.</string>
+    <string name="sms_limit_reached_title">Hết lượt gửi SMS</string>
+    <string name="sms_limit_reached">Đã gửi tối đa 3 lần SMS khẩn cấp. Vui lòng điểm danh thủ công.</string>
+    <string name="sms_body">KHẨN CẤP: %1$s không điểm danh %2$d ngày. Kiểm tra ngay!</string>
+    <string name="quick_check_in_title">Đã điểm danh</string>
+    <string name="already_checked_in">Hôm nay bạn đã điểm danh rồi.</string>
+    <string name="quick_check_in_success">Điểm danh nhanh thành công từ thông báo.</string>
+    <string name="notification_channel_name">Thông báo an toàn</string>
+    <string name="check_in">Điểm danh</string>
 </resources>
