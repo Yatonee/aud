@@ -1,6 +1,7 @@
 <resources>
     <!-- App -->
     <string name="app_name">Are You Alive</string>
+    <string name="main_title">Are You Alive</string>
 
     <!-- MainActivity -->
     <string name="hint_your_name">Your name</string>

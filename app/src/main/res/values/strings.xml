@@ -1,6 +1,7 @@
 <resources>
     <!-- App -->
     <string name="app_name">Bạn ổn không</string>
+    <string name="main_title">Bạn ổn không</string>
 
     <!-- MainActivity -->
     <string name="hint_your_name">Tên của bạn</string>

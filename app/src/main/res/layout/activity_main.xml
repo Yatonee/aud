@@ -16,7 +16,7 @@
         android:layout_height="wrap_content"
         android:layout_marginStart="20dp"
         android:layout_marginTop="18dp"
-        android:text="Are You Alive"
+        android:text="@string/main_title"
         android:textColor="#111111"
         android:textSize="32sp"
         android:textStyle="bold"
