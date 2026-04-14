@@ -1,0 +1,67 @@
+<resources>
+    <!-- App -->
+    <string name="app_name">Are You Alive</string>
+
+    <!-- MainActivity -->
+    <string name="hint_your_name">Your name</string>
+    <string name="hint_emergency_contact">Emergency contact</string>
+    <string name="check_in_now">Check in now!</string>
+    <string name="checked_in">Checked in</string>
+    <string name="last_check_in">Last check-in: --</string>
+    <string name="next_check_in">Next check-in: --</string>
+    <string name="streak">🔥 %d day streak</string>
+    <string name="checked_in_today">You\'ve already checked in today.</string>
+    <string name="add_contact_first">Please add an emergency contact first.</string>
+    <string name="check_in_success">Check-in successful.</string>
+    <string name="no_contacts">No emergency contacts yet.</string>
+    <string name="edit_user_name">Edit name</string>
+    <string name="edit_emergency_contact">Edit emergency contact</string>
+    <string name="contact_name_hint">Contact name</string>
+    <string name="contact_phone_hint">Phone number</string>
+    <string name="add_emergency_contact">Add emergency contact</string>
+    <string name="edit_contact">Edit contact</string>
+    <string name="cancel">Cancel</string>
+    <string name="save">Save</string>
+    <string name="phone_required">Phone number is required</string>
+    <string name="delete_contact">Delete contact</string>
+    <string name="default_contact_name">Family</string>
+    <string name="sms_permission_denied">SMS permission denied. Cannot send emergency SMS!</string>
+
+    <!-- SettingsActivity -->
+    <string name="settings">Settings</string>
+    <string name="done">Done</string>
+    <string name="add_emergency_contact_btn">+ Add emergency contact</string>
+    <string name="reminder_settings">🔔  Reminder settings</string>
+    <string name="daily_reminder_time">Daily reminder time</string>
+    <string name="safety_settings">🛡  Safety settings</string>
+    <string name="days_before_alert">Days before alert</string>
+    <string name="alert_rule_description">If you don\'t check in for more than %d consecutive days (%d hours), your emergency contacts will be notified.</string>
+    <string name="about">ⓘ  About</string>
+    <string name="version_format">Version %s</string>
+    <string name="app_description">Are You Alive helps ensure the safety of people living alone, especially the elderly, by tracking daily check-ins.</string>
+
+    <!-- Language -->
+    <string name="language">Language</string>
+    <string name="language_vietnamese">Tiếng Việt</string>
+    <string name="language_english">English</string>
+    <string name="language_changed">Language changed</string>
+
+    <!-- Dialog Contacts -->
+    <string name="emergency_contacts">Emergency contacts</string>
+    <string name="add">+ Add</string>
+
+    <!-- Notifications -->
+    <string name="safety_reminder_title">Safety reminder</string>
+    <string name="daily_check_in_reminder">Time for your daily check-in.</string>
+    <string name="emergency_alert_title">Emergency alert</string>
+    <string name="emergency_sms_sent">No check-in received. Emergency SMS sent (attempt %d).</string>
+    <string name="emergency_sms_failed">No check-in received. SMS failed - please check SMS permissions.</string>
+    <string name="sms_limit_reached_title">SMS limit reached</string>
+    <string name="sms_limit_reached">Maximum 3 emergency SMS attempts sent. Please check in manually.</string>
+    <string name="sms_body">EMERGENCY: %1$s has not checked in for %2$d days. Check on them now!</string>
+    <string name="quick_check_in_title">Checked in</string>
+    <string name="already_checked_in">You\'ve already checked in today.</string>
+    <string name="quick_check_in_success">Quick check-in successful from notification.</string>
+    <string name="notification_channel_name">Safety notifications</string>
+    <string name="check_in">Check in</string>
+</resources>
